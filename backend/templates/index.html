@@ -5,11 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAL-News</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Roboto:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
-        <h1>DAL-News</h1>
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='news_logo.jpg') }}" alt="DAL-News Logo" class="logo">
+            <h1><a href="/" class="logo-link">DAL-News</a></h1>
+        </div>
     </header>
     <div id="categories">
         <button onclick="loadCategory('Top')">Top</button>
@@ -25,7 +28,21 @@
         <button onclick="searchArticles()">Search</button>
     </div>
     <div id="loading" style="display: none;">Loading...</div>
-    <div id="news-articles"></div>
+    <div id="news-articles">
+        {% if articles %}
+            {% for article in articles %}
+                <div class="article-card">
+                    <h2><a href="/article_page/{{ article.title | urlencode }}">{{ article.title }}</a></h2>
+                    <a href="/article_page/{{ article.title | urlencode }}">
+                        <img src="{{ article.image_url }}" alt="{{ article.title }}" class="article-image">
+                    </a>
+                    <p>{{ article.summary[:100] }}...</p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>No articles available.</p>
+        {% endif %}
+    </div>
     <div class="scroll-down-indicator">↓</div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
