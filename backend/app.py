@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from elasticsearch import Elasticsearch
-from ContentSummarizer import summarize_text
-from search import search_articles  # Correct import
+from backend.search import search_articles  # Assuming this is still needed for /search
 import logging
 
 app = Flask(__name__)
@@ -58,14 +57,8 @@ def article(title):
     response = es.search(index=ES_INDEX, body=query)
     if response['hits']['total']['value'] > 0:
         article = response['hits']['hits'][0]['_source']
-        
-        # Summarize the article content
-        if 'content' in article and article['content']:
-            summary = summarize_text(article['content'])
-            article['summary'] = summary  # Add the summary to the article object
-        else:
-            article['summary'] = "No content available for summarization."
-        
+        # Use the pre-stored summary if available, otherwise provide a fallback
+        article['summary'] = article.get('summary', "No summary available.")
         return jsonify(article)
     else:
         return jsonify({"error": "Article not found"}), 404
@@ -77,20 +70,18 @@ def search():
         logging.error("Failed to connect to Elasticsearch")
         return jsonify({"error": "Could not connect to Elasticsearch"}), 500
 
-    # Get the search query from the URL parameters
     query = request.args.get('q')
     if not query:
         logging.error("No search query provided")
         return jsonify({"error": "No search query provided"}), 400
 
     try:
-        # Use the search function from search.py
         results = search_articles(es, query)
-        articles = [hit['_source'] for hit in results]  # Extract articles from search results
+        articles = [hit['_source'] for hit in results]
         return jsonify(articles)
     except Exception as e:
         logging.error(f"Error during search: {e}")
         return jsonify({"error": "Failed to fetch articles"}), 500
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
