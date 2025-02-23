@@ -1,76 +1,99 @@
-from flask import Flask, render_template, request, jsonify
-from elasticsearch import Elasticsearch
-from .search import search_articles
-import logging
-import os
+from flask import Flask, jsonify, request, render_template
+import time
+try:
+    from translator import translate_text
+    from category import extract_articles_by_category
+    from search import search_articles
+except ModuleNotFoundError as e:
+    print(f"Error: Could not import module - {e}")
+    print("Ensure all backend files are in the same directory as app.py")
+    exit(1)
 
 app = Flask(__name__)
 
-# Elasticsearch configuration
+# Connect to Elasticsearch once at app startup (using configuration from other files)
+from elasticsearch import Elasticsearch
+
 ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
 ES_USERNAME = "elastic"
 ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"
 ES_INDEX = "news-articles"
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+es = Elasticsearch(ES_ENDPOINT, basic_auth=(ES_USERNAME, ES_PASSWORD))
 
-def connect_to_elasticsearch():
-    es = Elasticsearch(
-        ES_ENDPOINT,
-        basic_auth=(ES_USERNAME, ES_PASSWORD)
-    )
-    if not es.ping():
-        raise Exception("Failed to connect to Elasticsearch")
-    return es
-
-# Add a health check endpoint
-@app.route('/health')
-def health():
-    return jsonify({"status": "healthy"}), 200
+CATEGORIES = ["Top", "Sports", "World", "States", "Cities", "Entertainment"]
 
 @app.route('/')
-def home():
+def index():
     return render_template('index.html')
 
-@app.route('/category/<category>')
-def category(category):
-    es = connect_to_elasticsearch()
-    if not es.ping():
-        return jsonify({"error": "Could not connect to Elasticsearch"}), 500
-    query = {"query": {"match": {"category": category}}}
-    response = es.search(index=ES_INDEX, body=query, size=1000)
-    articles = [hit['_source'] for hit in response['hits']['hits']]
+@app.route('/category/<category>', methods=['GET'])
+def get_articles(category):
+    start_time = time.time()
+    articles = extract_articles_by_category(es, category)
+    print(f"Category {category} fetch took: {time.time() - start_time:.3f} seconds")
     return jsonify(articles)
 
-@app.route('/article/<title>')
-def article(title):
-    es = connect_to_elasticsearch()
-    query = {"query": {"match": {"title": title}}}
-    response = es.search(index=ES_INDEX, body=query)
-    if response['hits']['total']['value'] > 0:
-        article = response['hits']['hits'][0]['_source']
-        article['summary'] = article.get('summary', "No summary available.")
-        return jsonify(article)
-    return jsonify({"error": "Article not found"}), 404
-
-@app.route('/search')
-def search():
-    es = connect_to_elasticsearch()
-    if not es.ping():
-        logging.error("Failed to connect to Elasticsearch")
-        return jsonify({"error": "Could not connect to Elasticsearch"}), 500
-    query = request.args.get('q')
+@app.route('/search', methods=['GET'])
+def search_articles_endpoint():
+    query = request.args.get('q', default='')
     if not query:
-        logging.error("No search query provided")
-        return jsonify({"error": "No search query provided"}), 400
-    try:
-        results = search_articles(es, query)
-        articles = [hit['_source'] for hit in results]
-        return jsonify(articles)
-    except Exception as e:
-        logging.error(f"Error during search: {e}")
-        return jsonify({"error": "Failed to fetch articles"}), 500
+        return jsonify({"error": "Query parameter 'q' is required"}), 400
+    start_time = time.time()
+    results = search_articles(es, query)
+    articles = [hit['_source'] for hit in results]
+    print(f"Search for '{query}' took: {time.time() - start_time:.3f} seconds")
+    return jsonify(articles)
 
-if __name__ == "__main__" and os.getenv("RENDER") != "true":
-    app.run(debug=True)
+@app.route('/article_page/<path:title>')
+def article_page(title):
+    start_time = time.time()
+    
+    # Use match query for flexible matching
+    query = {"query": {"match": {"title": title}}}
+    response = es.search(index="news-articles", body=query)
+    query_time = time.time() - start_time
+    print(f"ES query for '{title}' took: {query_time:.3f} seconds")
+    print(f"Query sent: {query}")  # Debug: Show exact query
+    
+    if response['hits']['total']['value'] == 0:
+        print(f"No article found for title: '{title}'")
+        print(f"ES response: {response}")  # Debug: Show why it failed
+        return "Article not found", 404
+    
+    article = response['hits']['hits'][0]['_source']
+    print(f"Found article: {article}")  # Debug: Confirm article data
+    
+    # Use precomputed summary directly (or placeholder if none exists)
+    summary_start = time.time()
+    if 'summary' in article and article['summary']:
+        print(f"Using precomputed summary for '{title}': {article['summary'][:50]}...")
+    else:
+        print(f"WARNING: No summary in ES for '{title}', using fallback")
+        article['summary'] = "Summary not available (precompute externally)"
+    summary_time = time.time() - summary_start
+    print(f"Summary retrieval took: {summary_time:.3f} seconds")
+
+    # Handle translation only if requested
+    lang = request.args.get('lang', default=None)
+    if lang:
+        translate_start = time.time()
+        article['title'] = translate_text(article['title'], lang) or article['title']
+        article['summary'] = translate_text(article['summary'], lang) or article['summary']
+        translate_time = time.time() - translate_start
+        print(f"Translation for '{title}' took: {translate_time:.3f} seconds")
+    else:
+        print(f"No translation requested for '{title}'")
+
+    # Render the page
+    render_start = time.time()
+    response = render_template('article.html', article=article, selected_lang=lang)
+    render_time = time.time() - render_start
+    print(f"Rendering template for '{title}' took: {render_time:.3f} seconds")
+    
+    total_time = time.time() - start_time
+    print(f"Total time for /article_page/{title}: {total_time:.3f} seconds")
+    return response
+
+if __name__ == "__main__":
+    app.run(debug=True, host='0.0.0.0', port=5001)  # For local testing, not production
