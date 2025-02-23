@@ -1,10 +1,11 @@
 from flask import Flask, jsonify, request, render_template
 import time
-import os
 try:
-    from .Translator import translate_text  # Updated to match file name
-    from .category import extract_articles_by_category
-    from .search import search_articles
+    from dataextractor import connect_to_elasticsearch, scrape_rss_feed, upload_to_elasticsearch
+    from contentssummariser import summarize_text
+    from translator import translate_text
+    from category import extract_articles_by_category
+    from search import search_articles
 except ModuleNotFoundError as e:
     print(f"Error: Could not import module - {e}")
     print("Ensure all backend files are in the same directory as app.py")
@@ -12,26 +13,52 @@ except ModuleNotFoundError as e:
 
 app = Flask(__name__)
 
-# Connect to Elasticsearch once at app startup (using configuration from other files)
-from elasticsearch import Elasticsearch
+es = connect_to_elasticsearch()
 
-ES_ENDPOINT = os.getenv("ELASTICSEARCH_ENDPOINT")
-ES_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
-ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
-ES_INDEX = "news-articles"
-
-es = Elasticsearch(
-    hosts=[ES_ENDPOINT],  # Pass the endpoint as a list of hosts
-    basic_auth=(ES_USERNAME, ES_PASSWORD),
-    # verify_certs=False # Disable SSL verification if using self-signed certificates
-)
 CATEGORIES = ["Top", "Sports", "World", "States", "Cities", "Entertainment"]
-@app.route('/health')
-def health():
-    return jsonify({"status": "healthy"}), 200
+
+RSS_FEEDS = {
+    "Top": "https://feeds.feedburner.com/ndtvnews-top-stories",
+    "Sports": "https://feeds.feedburner.com/ndtvsports-latest",
+    "World": "https://feeds.feedburner.com/ndtvnews-world-news",
+    "States": "https://feeds.feedburner.com/ndtvnews-south",
+    "Cities": "https://feeds.feedburner.com/ndtvnews-cities-news",
+    "Entertainment": "https://example.com/entertainment-rss"
+}
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    start_time = time.time()
+    
+    # Check for category or search query in the request
+    category = request.args.get('category')
+    search_query = request.args.get('search')
+    
+    if category:
+        # Fetch articles by category
+        query = {"query": {"match": {"category": category}}, "size": 1000}
+    elif search_query:
+        # Fetch articles by search query
+        query = {"query": {"multi_match": {"query": search_query, "fields": ["title^3", "content"], "fuzziness": "AUTO"}}, "size": 1000}
+    else:
+        # Fetch all articles
+        query = {"query": {"match_all": {}}, "size": 1000}
+    
+    response = es.search(index="news-articles", body=query)
+    query_time = time.time() - start_time
+    print(f"ES query took: {query_time:.3f} seconds")
+    
+    articles = [hit['_source'] for hit in response['hits']['hits']]
+    print(f"Found {len(articles)} articles in database")
+    
+    render_start = time.time()
+    response = render_template('index.html', articles=articles, categories=CATEGORIES)
+    render_time = time.time() - render_start
+    print(f"Rendering index page took: {render_time:.3f} seconds")
+    
+    total_time = time.time() - start_time
+    print(f"Total time for index page: {total_time:.3f} seconds")
+    return response
 
 @app.route('/category/<category>', methods=['GET'])
 def get_articles(category):
@@ -55,32 +82,49 @@ def search_articles_endpoint():
 def article_page(title):
     start_time = time.time()
     
-    # Use match query for flexible matching
+    # Fetch the current article
     query = {"query": {"match": {"title": title}}}
     response = es.search(index="news-articles", body=query)
     query_time = time.time() - start_time
     print(f"ES query for '{title}' took: {query_time:.3f} seconds")
-    print(f"Query sent: {query}")  # Debug: Show exact query
     
     if response['hits']['total']['value'] == 0:
         print(f"No article found for title: '{title}'")
-        print(f"ES response: {response}")  # Debug: Show why it failed
+        print(f"ES response: {response}")
         return "Article not found", 404
     
     article = response['hits']['hits'][0]['_source']
-    print(f"Found article: {article}")  # Debug: Confirm article data
+    print(f"Found article: {article}")
     
-    # Use precomputed summary directly (or placeholder if none exists)
+    # Fetch related articles based on content (more_like_this query)
+    related_query = {
+        "query": {
+            "more_like_this": {
+                "fields": ["title", "content"],
+                "like": [
+                    {
+                        "_index": "news-articles",
+                        "_id": response['hits']['hits'][0]['_id']
+                    }
+                ],
+                "min_term_freq": 1,
+                "max_query_terms": 12,
+                "min_doc_freq": 1
+            }
+        }
+    }
+    related_response = es.search(index="news-articles", body=related_query, size=5)
+    related_articles = [hit['_source'] for hit in related_response['hits']['hits'] if hit['_source']['title'] != title]
+    
     summary_start = time.time()
     if 'summary' in article and article['summary']:
         print(f"Using precomputed summary for '{title}': {article['summary'][:50]}...")
     else:
-        print(f"WARNING: No summary in ES for '{title}', using fallback")
-        article['summary'] = "Summary not available (precompute externally)"
+        print(f"WARNING: No summary in ES for '{title}' (this should not happen with current dataextractor)")
+        article['summary'] = "Summary missing unexpectedly."
     summary_time = time.time() - summary_start
     print(f"Summary retrieval took: {summary_time:.3f} seconds")
 
-    # Handle translation only if requested
     lang = request.args.get('lang', default=None)
     if lang:
         translate_start = time.time()
@@ -91,9 +135,8 @@ def article_page(title):
     else:
         print(f"No translation requested for '{title}'")
 
-    # Render the page
     render_start = time.time()
-    response = render_template('article.html', article=article, selected_lang=lang)
+    response = render_template('article.html', article=article, related_articles=related_articles, selected_lang=lang)
     render_time = time.time() - render_start
     print(f"Rendering template for '{title}' took: {render_time:.3f} seconds")
     
@@ -101,5 +144,16 @@ def article_page(title):
     print(f"Total time for /article_page/{title}: {total_time:.3f} seconds")
     return response
 
+@app.route('/update', methods=['POST'])
+def update_articles():
+    start_time = time.time()
+    new_articles = []
+    for category, url in RSS_FEEDS.items():
+        articles = scrape_rss_feed(url, category, es)  # Pass es for existence check
+        new_articles.extend(articles)
+    new_count = upload_to_elasticsearch(es, new_articles)
+    print(f"Update process took: {time.time() - start_time:.3f} seconds")
+    return jsonify({"message": f"Uploaded {new_count} new articles"})
+
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5001)  # For local testing, not production
+    app.run(debug=True, host='0.0.0.0', port=5001)
