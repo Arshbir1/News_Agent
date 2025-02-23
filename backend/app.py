@@ -15,7 +15,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from contentssummariser import summarize_text
+from ContentSummarizer import summarize_text
 
 app = Flask(__name__)
 
@@ -195,6 +195,6 @@ scheduler.start()
 
 if __name__ == "__main__":
     try:
-        app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)  # use_reloader=False to prevent scheduler from running twice
+        app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
