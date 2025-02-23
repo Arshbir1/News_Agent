@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from elasticsearch import Elasticsearch
 from ContentSummarizer import summarize_text
-from backend.search import search_articles  # Correct import
+from search import search_articles  # Correct import
 import logging
 
 app = Flask(__name__)
