@@ -19,7 +19,7 @@ ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
 es = Elasticsearch(
     hosts=[ES_ENDPOINT],
     basic_auth=(ES_USERNAME, ES_PASSWORD),
-
+)
 CATEGORIES = ["Top", "Sports", "World", "States", "Cities", "Entertainment"]
 
 RSS_FEEDS = {
