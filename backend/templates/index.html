@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Site</title>
+    <title>DAL-News</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>Welcome to the News Site</h1>
+    <header>
+        <h1>DAL-News</h1>
+    </header>
     <div id="categories">
         <button onclick="loadCategory('Top')">Top</button>
         <button onclick="loadCategory('Sports')">Sports</button>
         <button onclick="loadCategory('World')">World</button>
-        <button onclick="loadCategory('Business')">Business</button>
-        <button onclick="loadKarnatakaNews()">Karnataka News</button>  <!-- Updated -->
-        <button onclick="loadBengaluruNews()">Bengaluru News</button>  <!-- Updated -->
+        <button onclick="loadCategory('States')">States</button>
+        <button onclick="loadKarnatakaNews()">Karnataka</button>
+        <button onclick="loadBengaluruNews()">Bengaluru</button>
         <button onclick="loadCategory('Entertainment')">Entertainment</button>
     </div>
     <div id="search">
@@ -23,6 +26,7 @@
     </div>
     <div id="loading" style="display: none;">Loading...</div>
     <div id="news-articles"></div>
+    <div class="scroll-down-indicator">↓</div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

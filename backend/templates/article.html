@@ -3,15 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ article.title }}</title>
+    <title>{{ article.title }} - DAL-News</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>{{ article.title }}</h1>
-    <img src="{{ article.image_url }}" alt="{{ article.title }}" style="width:200px;">
-    <p><strong>Summary:</strong> {{ article.summary }}</p>
-    <p><strong>Content:</strong> {{ article.content }}</p>
-    <p><strong>Source:</strong> <a href="{{ article.link }}" target="_blank">Read more</a></p>
-    <a href="/">Back to Home</a>
+    <header>
+        <h1>DAL-News</h1>
+    </header>
+    <div class="article-content">
+        <h2>{{ article.title }}</h2>
+        <img src="{{ article.image_url }}" alt="{{ article.title }}" class="article-image">
+        <p><strong>Summary:</strong> {{ article.summary }}</p>
+        <p><strong>Source:</strong> <a href="{{ article.link }}" target="_blank">Read more</a></p>
+        <div>
+            <select id="translate-lang" onchange="window.location.href='/article_page/{{ article.title | urlencode }}?lang=' + this.value">
+                <option value="" {% if not selected_lang %}selected{% endif %}>Translate</option>
+                <option value="hi" {% if selected_lang == 'hi' %}selected{% endif %}>Hindi</option>
+                <option value="mr" {% if selected_lang == 'mr' %}selected{% endif %}>Marathi</option>
+                <option value="gu" {% if selected_lang == 'gu' %}selected{% endif %}>Gujarati</option>
+                <option value="bn" {% if selected_lang == 'bn' %}selected{% endif %}>Bengali</option>
+                <option value="ta" {% if selected_lang == 'ta' %}selected{% endif %}>Tamil</option>
+                <option value="kn" {% if selected_lang == 'kn' %}selected{% endif %}>Kannada</option>
+            </select>
+        </div>
+        <a href="/">Back to Home</a>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
