@@ -2,9 +2,9 @@ from flask import Flask, jsonify, request, render_template
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
 try:
-    from .Translator import translate_text
-    from .category import extract_articles_by_category
-    from .search import search_articles
+    from backend.Translator import translate_text
+    from backend.category import extract_articles_by_category
+    from backend.search import search_articles
 except ModuleNotFoundError as e:
     print(f"Error: Could not import module - {e}")
     print("Ensure all backend files are in the same directory as app.py")
@@ -15,7 +15,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from .ContentSummarizer import summarize_text
+from backend.ContentSummarizer import summarize_text
 
 app = Flask(__name__)
 
