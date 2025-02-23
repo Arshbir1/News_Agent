@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from elasticsearch import Elasticsearch
-from backend.search import search_articles  # Assuming this is still needed for /search
+from search import search_articles  # Assuming this is still needed for /search
 import logging
 
 app = Flask(__name__)
