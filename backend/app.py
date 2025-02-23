@@ -3,7 +3,7 @@ import time
 try:
     from translator import translate_text
     from category import extract_articles_by_category
-    from search import search_articles
+    from .search import search_articles
 except ModuleNotFoundError as e:
     print(f"Error: Could not import module - {e}")
     print("Ensure all backend files are in the same directory as app.py")
