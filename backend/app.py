@@ -22,7 +22,9 @@ ES_INDEX = "news-articles"
 es = Elasticsearch(ES_ENDPOINT, basic_auth=(ES_USERNAME, ES_PASSWORD))
 
 CATEGORIES = ["Top", "Sports", "World", "States", "Cities", "Entertainment"]
-
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"}), 200
 @app.route('/')
 def index():
     return render_template('index.html')
