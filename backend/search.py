@@ -1,9 +1,14 @@
 from elasticsearch import Elasticsearch
 
 # Elasticsearch configuration
-ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
-ES_USERNAME = "elastic"
-ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"  # Replace with your actual password
+# ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
+# ES_USERNAME = "elastic"
+# ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"  # Replace with your actual password
+import os
+
+ES_ENDPOINT = os.getenv("ELASTICSEARCH_ENDPOINT")
+ES_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
+ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
 ES_INDEX = "news-articles"  # Name of the Elasticsearch index
 
 def connect_to_elasticsearch():
@@ -11,9 +16,10 @@ def connect_to_elasticsearch():
     Connect to the Elasticsearch cluster.
     """
     es = Elasticsearch(
-        ES_ENDPOINT,
-        basic_auth=(ES_USERNAME, ES_PASSWORD)
-    )
+    hosts=[ES_ENDPOINT],
+    basic_auth=(ES_USERNAME, ES_PASSWORD),
+    # verify_certs=False  # Disable SSL verification
+)
     return es
 
 def search_articles(es, query):
