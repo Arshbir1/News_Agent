@@ -20,8 +20,11 @@ ES_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
 ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
 ES_INDEX = "news-articles"
 
-es = Elasticsearch(ES_ENDPOINT, basic_auth=(ES_USERNAME, ES_PASSWORD))
-
+es = Elasticsearch(
+    hosts=[ES_ENDPOINT],  # Pass the endpoint as a list of hosts
+    basic_auth=(ES_USERNAME, ES_PASSWORD),
+    verify_certs=False  # Disable SSL verification if using self-signed certificates
+)
 CATEGORIES = ["Top", "Sports", "World", "States", "Cities", "Entertainment"]
 @app.route('/health')
 def health():
