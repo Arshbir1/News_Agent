@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 from elasticsearch import Elasticsearch
-from search import search_articles  # Assuming this is still needed for /search
+from search import search_articles
 import logging
+import os  # For environment variable handling
 
 app = Flask(__name__)
 
@@ -32,14 +33,7 @@ def category(category):
     es = connect_to_elasticsearch()
     if not es.ping():
         return jsonify({"error": "Could not connect to Elasticsearch"}), 500
-
-    query = {
-        "query": {
-            "match": {
-                "category": category
-            }
-        }
-    }
+    query = {"query": {"match": {"category": category}}}
     response = es.search(index=ES_INDEX, body=query, size=1000)
     articles = [hit['_source'] for hit in response['hits']['hits']]
     return jsonify(articles)
@@ -47,21 +41,13 @@ def category(category):
 @app.route('/article/<title>')
 def article(title):
     es = connect_to_elasticsearch()
-    query = {
-        "query": {
-            "match": {
-                "title": title
-            }
-        }
-    }
+    query = {"query": {"match": {"title": title}}}
     response = es.search(index=ES_INDEX, body=query)
     if response['hits']['total']['value'] > 0:
         article = response['hits']['hits'][0]['_source']
-        # Use the pre-stored summary if available, otherwise provide a fallback
         article['summary'] = article.get('summary', "No summary available.")
         return jsonify(article)
-    else:
-        return jsonify({"error": "Article not found"}), 404
+    return jsonify({"error": "Article not found"}), 404
 
 @app.route('/search')
 def search():
@@ -69,12 +55,10 @@ def search():
     if not es.ping():
         logging.error("Failed to connect to Elasticsearch")
         return jsonify({"error": "Could not connect to Elasticsearch"}), 500
-
     query = request.args.get('q')
     if not query:
         logging.error("No search query provided")
         return jsonify({"error": "No search query provided"}), 400
-
     try:
         results = search_articles(es, query)
         articles = [hit['_source'] for hit in results]
@@ -83,5 +67,6 @@ def search():
         logging.error(f"Error during search: {e}")
         return jsonify({"error": "Failed to fetch articles"}), 500
 
-if __name__ == "__main__":
+# Only run the development server if this is executed directly and not on Render
+if __name__ == "__main__" and os.getenv("RENDER") != "true":
     app.run(debug=True)
