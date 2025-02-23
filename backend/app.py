@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from elasticsearch import Elasticsearch
-from search import search_articles
+from .search import search_articles
 import logging
 import os  # For environment variable handling
 
