@@ -1,11 +1,11 @@
 from flask import Flask, jsonify, request, render_template
 import time
 try:
-    from dataextractor import connect_to_elasticsearch, scrape_rss_feed, upload_to_elasticsearch
-    from contentssummariser import summarize_text
-    from translator import translate_text
-    from category import extract_articles_by_category
-    from search import search_articles
+    from .DataExtractor import connect_to_elasticsearch, scrape_rss_feed, upload_to_elasticsearch
+    # from contentssummariser import summarize_text
+    from .Translator import translate_text
+    from .category import extract_articles_by_category
+    from .search import search_articles
 except ModuleNotFoundError as e:
     print(f"Error: Could not import module - {e}")
     print("Ensure all backend files are in the same directory as app.py")
