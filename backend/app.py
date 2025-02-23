@@ -15,7 +15,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from ContentSummarizer import summarize_text
+from .ContentSummarizer import summarize_text
 
 app = Flask(__name__)
 
