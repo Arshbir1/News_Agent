@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request, render_template
 import time
+import os
 try:
     from .Translator import translate_text  # Updated to match file name
     from .category import extract_articles_by_category
