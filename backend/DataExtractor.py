@@ -4,156 +4,127 @@ from bs4 import BeautifulSoup
 import time
 from datetime import datetime
 from elasticsearch import Elasticsearch
+from contentssummariser import summarize_text
 
-# Interval between checks (in seconds)
-CHECK_INTERVAL = 60  # 1 minute
-
-# Elasticsearch configuration
+CHECK_INTERVAL = 60
 ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
 ES_USERNAME = "elastic"
-ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"  # Replace with your actual password
-ES_INDEX = "news-articles"  # Name of the Elasticsearch index
+ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"
+ES_INDEX = "news-articles"
+MAX_TOKEN_LIMIT = 1024  # Max tokens for facebook/bart-large-cnn
 
 def connect_to_elasticsearch():
-    """
-    Connect to the Elasticsearch cluster.
-    """
-    es = Elasticsearch(
-        ES_ENDPOINT,
-        basic_auth=(ES_USERNAME, ES_PASSWORD))
+    es = Elasticsearch(ES_ENDPOINT, basic_auth=(ES_USERNAME, ES_PASSWORD))
     return es
 
 def scrape_article_content(url):
-    """
-    Scrape the content of an article from its URL.
-    Extracts text between <p> tags and joins it.
-    Handles 500 Server Errors and other exceptions.
-    """
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()  # Raise an error for bad status codes (4xx, 5xx)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Extract text between <p> tags and join them
-        paragraphs = soup.find_all('p')
-        content = ' '.join(p.get_text(strip=True) for p in paragraphs)
-        
-        return content
-    except requests.exceptions.HTTPError as e:
-        print(f"HTTP Error scraping {url}: {e}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error scraping {url}: {e}")
-    except Exception as e:
-        print(f"Unexpected error scraping {url}: {e}")
-    return None
-
-def scrape_image_url(url):
-    """
-    Scrape the image URL from the article's webpage, excluding tracking pixels and ads.
-    """
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Look for all <img> tags
+        paragraphs = soup.find_all('p')
+        content = ' '.join(p.get_text(strip=True) for p in paragraphs)
+        return content if content else None
+    except Exception as e:
+        print(f"Error scraping {url}: {e}")
+        return None
+
+def scrape_image_url(url):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
         img_tags = soup.find_all('img')
-        
-        # Filter out tracking pixels and ads
         for img in img_tags:
             src = img.get('src') or img.get('data-src')
             if src and not any(keyword in src for keyword in ['scorecardresearch', 'ad', 'pixel', 'track', 'analytics']):
                 return src
-        
-        # If no valid image is found, return None
         return None
-    except requests.exceptions.HTTPError as e:
-        print(f"HTTP Error scraping image from {url}: {e}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error scraping image from {url}: {e}")
     except Exception as e:
-        print(f"Unexpected error scraping image from {url}: {e}")
-    return None
+        print(f"Error scraping image from {url}: {e}")
+        return None
 
-def scrape_rss_feed(rss_url, category):
-    """
-    Parse the RSS feed and scrape content for each article.
-    Adds a 'category' field and 'image_url' to each article.
-    """
+def estimate_token_count(text):
+    # Rough estimate: 1 token ≈ 0.75 words
+    words = text.split()
+    return int(len(words) / 0.75)
+
+def scrape_rss_feed(rss_url, category, es):
     feed = feedparser.parse(rss_url)
-    
     articles = []
-    
     for entry in feed.entries:
-        # Scrape the article content
-        content = scrape_article_content(entry.get('link'))
+        link = entry.get('link', 'No Link')
         
-        # Extract image URL from the RSS feed (if available)
+        # Skip if article already exists in Elasticsearch
+        if article_exists_in_elasticsearch(es, link):
+            print(f"Skipping existing article: {entry.get('title', 'No Title')} (ID: {link})")
+            continue
+        
+        content = scrape_article_content(link)
+        if not content:
+            print(f"Skipping {entry.get('title', 'No Title')} due to no content")
+            continue
+        
+        # Check summarizer constraints
+        token_count = estimate_token_count(content)
+        if token_count > MAX_TOKEN_LIMIT:
+            print(f"Skipping {entry.get('title', 'No Title')} - exceeds {MAX_TOKEN_LIMIT} tokens ({token_count})")
+            continue
+        if token_count < 50:  # Minimum reasonable length for summarization
+            print(f"Skipping {entry.get('title', 'No Title')} - too short for summarization ({token_count} tokens)")
+            continue
+        
+        # Generate summary at scrape time
+        summary = summarize_text(content)
+        if not summary or summary in ["No content available for summarization.", "Summarization failed due to an error."]:
+            print(f"Skipping {entry.get('title', 'No Title')} - failed to generate valid summary")
+            continue
+        
+        # Only proceed if summary is valid
         image_url = None
         if 'media_content' in entry and entry.media_content:
-            # Check if the media content is an image
             for media in entry.media_content:
                 if media.get('type', '').startswith('image/'):
                     image_url = media.get('url')
                     break
-        
-        # If no image URL is found in the RSS feed, scrape it from the article's webpage
         if not image_url:
-            image_url = scrape_image_url(entry.get('link'))
+            image_url = scrape_image_url(link)
         
         article = {
             'title': entry.get('title', 'No Title'),
-            'link': entry.get('link', 'No Link'),
+            'link': link,
             'published': entry.get('published', 'No Date'),
             'content': content,
-            'category': category,  # Add category based on the RSS feed
-            'image_url': image_url,  # Add image URL
-            'last_updated': datetime.now().isoformat()  # Track when the article was last updated
+            'summary': summary,
+            'category': category,
+            'image_url': image_url,
+            'last_updated': datetime.now().isoformat()
         }
-        
-        if article['content']:  # Only add articles with successfully scraped content
-            articles.append(article)
-        # time.sleep(1)  # Add a delay to avoid overwhelming the server
-    
+        articles.append(article)
+        print(f"Added new article: {article['title']} - Summary: {article['summary'][:50]}... (Tokens: {token_count})")
     return articles
 
 def article_exists_in_elasticsearch(es, link, index_name=ES_INDEX):
-    """
-    Check if an article with the given link already exists in Elasticsearch.
-    """
     try:
         return es.exists(index=index_name, id=link)
     except Exception as e:
-        print(f"Error checking if article exists in Elasticsearch: {e}")
+        print(f"Error checking if article exists: {e}")
         return False
 
 def upload_to_elasticsearch(es, articles, index_name=ES_INDEX):
-    """
-    Upload articles to Elasticsearch.
-    Deduplicates articles based on the 'link' field.
-    """
-    # Track the number of new articles uploaded
     new_articles_uploaded = 0
-
     for article in articles:
         link = article['link']
-        
-        # Check if the article already exists in Elasticsearch
+        # Double-check existence to avoid race conditions
         if not article_exists_in_elasticsearch(es, link, index_name):
-            # Upload the article if it doesn't exist
             response = es.index(index=index_name, id=link, document=article)
-            print(f"Uploaded article: {response['result']} (ID: {link})")
+            print(f"Uploaded new article: {response['result']} (ID: {link})")
             new_articles_uploaded += 1
         else:
-            print(f"Article already exists in Elasticsearch (ID: {link}). Skipping.")
-
+            print(f"Article already exists (ID: {link}), skipping upload")
     return new_articles_uploaded
 
 def main():
-    """
-    Main function to scrape RSS feeds and upload new articles to Elasticsearch.
-    """
-    # Define your RSS feeds and their categories
     rss_feeds = {
         "Top": "https://feeds.feedburner.com/ndtvnews-top-stories",
         "Sports": "https://feeds.feedburner.com/ndtvsports-latest",
@@ -162,32 +133,26 @@ def main():
         "Cities": "https://feeds.feedburner.com/ndtvnews-cities-news",
         "Entertainment": "https://example.com/entertainment-rss"
     }
-
-    # Connect to Elasticsearch
     es = connect_to_elasticsearch()
     if not es.ping():
-        print("❌ Could not connect to Elasticsearch. Check your credentials and endpoint.")
+        print("❌ Could not connect to Elasticsearch.")
         return
-
-    # Scrape articles from each RSS feed
+    
     new_articles = []
     for category, url in rss_feeds.items():
         print(f"Scraping {category} feed...")
-        articles = scrape_rss_feed(url, category)
+        articles = scrape_rss_feed(url, category, es)
         new_articles.extend(articles)
-        print(f"Found {len(articles)} articles in {category} feed.")
-
-    # Upload only new articles to Elasticsearch
+        print(f"Found {len(articles)} new articles in {category} feed.")
     if new_articles:
         new_articles_uploaded = upload_to_elasticsearch(es, new_articles)
-        print(f"Uploaded {new_articles_uploaded} new articles to Elasticsearch.")
+        print(f"Uploaded {new_articles_uploaded} new articles.")
     else:
         print("No new articles found.")
 
-# Run the script continuously
 if __name__ == "__main__":
     while True:
         print(f"Starting RSS feed check at {datetime.now().isoformat()}")
         main()
-        print(f"Waiting for {CHECK_INTERVAL // 60} minute(s) before the next check...")
+        print(f"Waiting for {CHECK_INTERVAL // 60} minute(s)...")
         time.sleep(CHECK_INTERVAL)
