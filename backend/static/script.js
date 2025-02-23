@@ -1,12 +1,16 @@
+document.addEventListener('DOMContentLoaded', () => loadCategory('Top'));
+
+const BASE_URL = window.location.origin;
+
 async function loadCategory(category) {
     showLoading();
     try {
-        const response = await fetch(`/category/${category}`);
+        const response = await fetch(`${BASE_URL}/category/${category}`);
         const articles = await response.json();
-        console.log(`Fetched articles for category '${category}':`, articles);  // Debugging
+        console.log(`Fetched articles for category '${category}':`, articles);
         renderArticles(articles);
     } catch (error) {
-        console.error(`Error loading category '${category}':`, error);  // Debugging
+        console.error(`Error loading category '${category}':`, error);
         alert("Failed to load articles.");
     } finally {
         hideLoading();
@@ -16,13 +20,12 @@ async function loadCategory(category) {
 async function loadBengaluruNews() {
     showLoading();
     try {
-        // Call the search endpoint with the query "Bengaluru"
-        const response = await fetch(`/search?q=Bengaluru`);
+        const response = await fetch(`${BASE_URL}/search?q=Bengaluru`);
         const articles = await response.json();
-        console.log("Fetched Bengaluru news:", articles);  // Debugging
+        console.log("Fetched Bengaluru news:", articles);
         renderArticles(articles);
     } catch (error) {
-        console.error("Error loading Bengaluru news:", error);  // Debugging
+        console.error("Error loading Bengaluru news:", error);
         alert("Failed to load Bengaluru news.");
     } finally {
         hideLoading();
@@ -32,13 +35,12 @@ async function loadBengaluruNews() {
 async function loadKarnatakaNews() {
     showLoading();
     try {
-        // Call the search endpoint with the query "Karnataka"
-        const response = await fetch(`/search?q=Karnataka`);
+        const response = await fetch(`${BASE_URL}/search?q=Karnataka`);
         const articles = await response.json();
-        console.log("Fetched Karnataka news:", articles);  // Debugging
+        console.log("Fetched Karnataka news:", articles);
         renderArticles(articles);
     } catch (error) {
-        console.error("Error loading Karnataka news:", error);  // Debugging
+        console.error("Error loading Karnataka news:", error);
         alert("Failed to load Karnataka news.");
     } finally {
         hideLoading();
@@ -53,51 +55,14 @@ async function searchArticles() {
         hideLoading();
         return;
     }
-
     try {
-        // Pass the search query as a query parameter
-        const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}`);
         const articles = await response.json();
-        console.log(`Fetched articles for search query '${query}':`, articles);  // Debugging
+        console.log(`Fetched articles for search query '${query}':`, articles);
         renderArticles(articles);
     } catch (error) {
-        console.error(`Error searching articles:`, error);  // Debugging
+        console.error(`Error searching articles:`, error);
         alert("Failed to search articles.");
-    } finally {
-        hideLoading();
-    }
-}
-
-async function loadArticleDetails(title) {
-    const detailsDiv = document.getElementById(`details-${title.replace(/ /g, '-')}`);
-    if (detailsDiv.innerHTML) {
-        // Toggle visibility if details are already loaded
-        detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
-        return;
-    }
-
-    showLoading();
-    try {
-        // Encode the title for the URL
-        const encodedTitle = encodeURIComponent(title);
-        const response = await fetch(`/article/${encodedTitle}`);
-        const article = await response.json();
-        if (article.error) {
-            alert(article.error);
-            return;
-        }
-
-        // Display article details
-        detailsDiv.innerHTML = `
-            <p><strong>Summary:</strong> ${article.summary || "No summary available."}</p>
-            <p><strong>Content:</strong> ${article.content || "No content available."}</p>
-            <p><strong>Source:</strong> <a href="${article.link}" target="_blank">Read more</a></p>
-            <img src="${article.image_url}" alt="${article.title}" style="width:200px;">
-        `;
-        detailsDiv.style.display = 'block';
-    } catch (error) {
-        console.error(`Error loading article details: ${error}`);
-        alert("Failed to load article details.");
     } finally {
         hideLoading();
     }
@@ -105,17 +70,18 @@ async function loadArticleDetails(title) {
 
 function renderArticles(articles) {
     const articlesDiv = document.getElementById('news-articles');
-    articlesDiv.innerHTML = ''; // Clear previous articles
-    if (articles.length === 0) {
-        articlesDiv.innerHTML = '<p>No articles found for this category.</p>';
+    articlesDiv.innerHTML = '';
+    if (!articles || articles.length === 0) {
+        articlesDiv.innerHTML = '<p>No articles found.</p>';
         return;
     }
     articles.forEach(article => {
         const articleDiv = document.createElement('div');
-        articleDiv.className = 'article';
+        articleDiv.className = 'article-card';
         articleDiv.innerHTML = `
-            <h2><a href="/article/${encodeURIComponent(article.title)}" style="text-decoration: none; color: blue;">${article.title}</a></h2>
-            <img src="${article.image_url}" alt="${article.title}" style="width:200px;">
+            <img src="${article.image_url || 'https://via.placeholder.com/300'}" alt="${article.title}">
+            <h2><a href="/article_page/${encodeURIComponent(article.title)}">${article.title}</a></h2>
+            <p>${article.content.substring(0, 100)}...</p>
         `;
         articlesDiv.appendChild(articleDiv);
     });
