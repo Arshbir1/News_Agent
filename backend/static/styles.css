@@ -22,12 +22,39 @@ header {
     border-bottom: 1px solid #444444;
 }
 
+/* Logo Container */
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* Logo Image */
+.logo {
+    height: 50px;  /* Adjust as needed */
+    width: auto;
+    border-radius: 8px;  /* Optional: Add rounded corners */
+}
+
+/* Header Title */
 header h1 {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Merriweather', serif;  /* Changed font to Merriweather */
     font-size: 36px;
     font-weight: 700;
     color: #ffffff;
     letter-spacing: 1px;
+}
+
+/* Remove underline from DAL-NEWS logo */
+.logo-link {
+    text-decoration: none;
+    color: inherit;
+    transition: opacity 0.3s ease;
+}
+
+.logo-link:hover {
+    opacity: 0.8;
 }
 
 /* Categories Section */
@@ -140,9 +167,12 @@ header h1 {
 }
 
 .article-card img {
+    display: block;
+    margin: 0 auto;
     width: 100%;
     height: 220px;
     object-fit: cover;
+    border-radius: 8px;
     transition: transform 0.3s ease;
 }
 
@@ -174,13 +204,20 @@ header h1 {
 }
 
 /* Article Page Specific */
-.article-content {
-    max-width: 800px;
+.article-container {
+    display: flex;
+    gap: 20px;
+    max-width: 1200px;
     margin: 30px auto;
     padding: 20px;
+}
+
+.article-content {
+    flex: 3;
     background-color: #2b2b2b;
     border-radius: 12px;
     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    padding: 20px;
 }
 
 .article-content h2 {
@@ -192,10 +229,11 @@ header h1 {
 }
 
 .article-image {
+    display: block;
+    margin: 0 auto;
     width: 100%;
     max-width: 300px;
     height: auto;
-    margin: 20px 0;
     border-radius: 8px;
 }
 
@@ -227,6 +265,49 @@ header h1 {
     font-family: 'Roboto', sans-serif;
     font-size: 14px;
     margin-top: 20px;
+}
+
+.related-articles {
+    flex: 1;
+    background-color: #2b2b2b;
+    border-radius: 12px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    padding: 20px;
+}
+
+.related-articles h3 {
+    font-size: 22px;
+    color: #ffffff;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.related-article-card {
+    margin-bottom: 20px;
+}
+
+.related-article-card img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.related-article-card h4 {
+    font-size: 16px;
+    color: #ffffff;
+    font-family: 'Roboto', sans-serif;
+    margin-top: 10px;
+}
+
+.related-article-card h4 a {
+    text-decoration: none;
+    color: #ffffff;
+}
+
+.related-article-card h4 a:hover {
+    color: #cccccc;
 }
 
 /* Scroll Down Feature */

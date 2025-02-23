@@ -1,17 +1,40 @@
-document.addEventListener('DOMContentLoaded', () => loadCategory('Top'));
+document.addEventListener('DOMContentLoaded', () => {
+    // Load the default category (Top) when the page loads
+    if (window.location.pathname === '/') {
+        loadCategory('Top');
+    }
+});
 
 const BASE_URL = window.location.origin;
+
+// Load category from the article page
+function loadCategoryFromArticle(category) {
+    window.location.href = `${BASE_URL}/?category=${category}`;
+}
+
+// Load Karnataka news from the article page
+function loadKarnatakaNewsFromArticle() {
+    window.location.href = `${BASE_URL}/?search=Karnataka`;
+}
+
+// Load Bengaluru news from the article page
+function loadBengaluruNewsFromArticle() {
+    window.location.href = `${BASE_URL}/?search=Bengaluru`;
+}
 
 async function loadCategory(category) {
     showLoading();
     try {
         const response = await fetch(`${BASE_URL}/category/${category}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load articles. Please try again later.`);
+        }
         const articles = await response.json();
         console.log(`Fetched articles for category '${category}':`, articles);
         renderArticles(articles);
     } catch (error) {
         console.error(`Error loading category '${category}':`, error);
-        alert("Failed to load articles.");
+        alert(error.message);  // Display user-friendly error message
     } finally {
         hideLoading();
     }
@@ -21,12 +44,15 @@ async function loadBengaluruNews() {
     showLoading();
     try {
         const response = await fetch(`${BASE_URL}/search?q=Bengaluru`);
+        if (!response.ok) {
+            throw new Error(`Failed to load articles. Please try again later.`);
+        }
         const articles = await response.json();
         console.log("Fetched Bengaluru news:", articles);
         renderArticles(articles);
     } catch (error) {
         console.error("Error loading Bengaluru news:", error);
-        alert("Failed to load Bengaluru news.");
+        alert(error.message);
     } finally {
         hideLoading();
     }
@@ -36,12 +62,15 @@ async function loadKarnatakaNews() {
     showLoading();
     try {
         const response = await fetch(`${BASE_URL}/search?q=Karnataka`);
+        if (!response.ok) {
+            throw new Error(`Failed to load articles. Please try again later.`);
+        }
         const articles = await response.json();
         console.log("Fetched Karnataka news:", articles);
         renderArticles(articles);
     } catch (error) {
         console.error("Error loading Karnataka news:", error);
-        alert("Failed to load Karnataka news.");
+        alert(error.message);
     } finally {
         hideLoading();
     }
@@ -57,12 +86,15 @@ async function searchArticles() {
     }
     try {
         const response = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            throw new Error(`Failed to load articles. Please try again later.`);
+        }
         const articles = await response.json();
         console.log(`Fetched articles for search query '${query}':`, articles);
         renderArticles(articles);
     } catch (error) {
         console.error(`Error searching articles:`, error);
-        alert("Failed to search articles.");
+        alert(error.message);
     } finally {
         hideLoading();
     }
@@ -70,6 +102,10 @@ async function searchArticles() {
 
 function renderArticles(articles) {
     const articlesDiv = document.getElementById('news-articles');
+    if (!articlesDiv) {
+        console.error('Element with id "news-articles" not found. This function is intended for the homepage.');
+        return;
+    }
     articlesDiv.innerHTML = '';
     if (!articles || articles.length === 0) {
         articlesDiv.innerHTML = '<p>No articles found.</p>';
@@ -79,8 +115,10 @@ function renderArticles(articles) {
         const articleDiv = document.createElement('div');
         articleDiv.className = 'article-card';
         articleDiv.innerHTML = `
-            <img src="${article.image_url || 'https://via.placeholder.com/300'}" alt="${article.title}">
             <h2><a href="/article_page/${encodeURIComponent(article.title)}">${article.title}</a></h2>
+            <a href="/article_page/${encodeURIComponent(article.title)}">
+                <img src="${article.image_url || 'https://via.placeholder.com/300'}" alt="${article.title}" class="article-image">
+            </a>
             <p>${article.content.substring(0, 100)}...</p>
         `;
         articlesDiv.appendChild(articleDiv);
@@ -88,9 +126,24 @@ function renderArticles(articles) {
 }
 
 function showLoading() {
-    document.getElementById('loading').style.display = 'block';
+    const loadingDiv = document.getElementById('loading');
+    if (loadingDiv) {
+        loadingDiv.style.display = 'block';
+    }
 }
 
 function hideLoading() {
-    document.getElementById('loading').style.display = 'none';
+    const loadingDiv = document.getElementById('loading');
+    if (loadingDiv) {
+        loadingDiv.style.display = 'none';
+    }
+}
+
+function translateArticle(lang) {
+    const currentUrl = window.location.href.split('?')[0];  // Remove existing query params
+    if (lang) {
+        window.location.href = `${currentUrl}?lang=${lang}`;
+    } else {
+        window.location.href = currentUrl;  // Reset to default (no translation)
+    }
 }
