@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from elasticsearch import Elasticsearch
 from .search import search_articles
 import logging
-import os  # For environment variable handling
+import os
 
 app = Flask(__name__)
 
@@ -23,6 +23,11 @@ def connect_to_elasticsearch():
     if not es.ping():
         raise Exception("Failed to connect to Elasticsearch")
     return es
+
+# Add a health check endpoint
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"}), 200
 
 @app.route('/')
 def home():
@@ -67,6 +72,5 @@ def search():
         logging.error(f"Error during search: {e}")
         return jsonify({"error": "Failed to fetch articles"}), 500
 
-# Only run the development server if this is executed directly and not on Render
 if __name__ == "__main__" and os.getenv("RENDER") != "true":
     app.run(debug=True)
