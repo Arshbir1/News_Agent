@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request, render_template
+from elasticsearch import Elasticsearch
 import time
 import os
 try:
