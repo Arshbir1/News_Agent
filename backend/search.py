@@ -1,56 +1,82 @@
 from elasticsearch import Elasticsearch
 
-# Elasticsearch configuration
-# ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
-# ES_USERNAME = "elastic"
-# ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"  # Replace with your actual password
-import os
-
-ES_ENDPOINT = os.getenv("ELASTICSEARCH_ENDPOINT")
-ES_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
-ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
-ES_INDEX = "news-articles"  # Name of the Elasticsearch index
+ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
+ES_USERNAME = "elastic"
+ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"
+ES_INDEX = "news-articles"
 
 def connect_to_elasticsearch():
-    """
-    Connect to the Elasticsearch cluster.
-    """
-    es = Elasticsearch(
-    hosts=[ES_ENDPOINT],
-    basic_auth=(ES_USERNAME, ES_PASSWORD),
-    # verify_certs=False  # Disable SSL verification
-)
+    es = Elasticsearch(ES_ENDPOINT, basic_auth=(ES_USERNAME, ES_PASSWORD))
     return es
 
 def search_articles(es, query):
-    """
-    Search for articles by keywords in both the title and content fields.
-    """
+    # Define categories for potential filtering
+    CATEGORIES = ["Top", "Sports", "World", "States", "Entertainment"]
+
+    # Check if the query matches a category exactly (case-insensitive)
+    normalized_query = query.lower().strip()
+    is_category_query = any(cat.lower() == normalized_query for cat in CATEGORIES)
+
     search_query = {
         "query": {
-            "multi_match": {
-                "query": query,  # The search query
-                "fields": ["title^3", "content"],  # Search in both title and content fields
-                "fuzziness": "AUTO"  # Allow for some typos in the query
+            "bool": {  # Use bool query for more control
+                "should": [
+                    # Exact match or phrase match in title (highest priority)
+                    {
+                        "match_phrase": {
+                            "title": {
+                                "query": query,
+                                "boost": 10  # Boost exact title matches heavily
+                            }
+                        }
+                    },
+                    # Partial match or stemmed match in title (moderate priority)
+                    {
+                        "match": {
+                            "title": {
+                                "query": query,
+                                "fuzziness": 0,  # No fuzziness for precise matches
+                                "boost": 5  # Moderate boost for title
+                            }
+                        }
+                    },
+                    # Match in content (lower priority)
+                    {
+                        "match": {
+                            "content": {
+                                "query": query,
+                                "fuzziness": 0,  # No fuzziness for precise matches
+                                "boost": 2  # Lower boost for content
+                            }
+                        }
+                    }
+                ],
+                "minimum_should_match": 1,  # At least one "should" clause must match
+                "filter": []  # Optional category filter
             }
-        }
+        },
+        "size": 1000,
+        "_source": ["title", "content", "category", "summary", "image_url", "date_publish"]
     }
 
-    # Execute the search query
-    response = es.search(index=ES_INDEX, body=search_query)
-    return response['hits']['hits']  # Return the search results
+    # If the query matches a category, filter results to prioritize that category
+    if is_category_query:
+        search_query["query"]["bool"]["filter"].append(
+            {
+                "match": {
+                    "category": query.capitalize()  # Match the category exactly (capitalize for consistency)
+                }
+            }
+        )
 
-# Example usage
-if __name__ == "__main__":
-    es = connect_to_elasticsearch()
-    query = "cricket"  # Example search query
-    results = search_articles(es, query)
+    response = es.search(index=ES_INDEX, body=search_query)
     
-    if results:
-        print(f"Found {len(results)} results for '{query}':")
-        for result in results:
-            print(f"Title: {result['_source']['title']}")
-            print(f"Content snippet: {result['_source']['content'][:200]}...")  # Show a snippet of the content
-            print("-" * 50)
-    else:
-        print(f"No results found for '{query}'.")
+    # Deduplicate based on title
+    seen_titles = set()
+    unique_hits = []
+    for hit in response['hits']['hits']:
+        title = hit["_source"].get("title")
+        if title not in seen_titles:
+            seen_titles.add(title)
+            unique_hits.append(hit)
+    return unique_hits
