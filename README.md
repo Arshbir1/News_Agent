@@ -24,7 +24,7 @@ Deployed on [Render](https://render.com/), DAL-News is ready to scale, but you c
 ## Prerequisites 📋
 
 To build, run, or deploy DAL-News, you’ll need:
-- [Python 3.8+](https://www.python.org/downloads/) - The backbone of the app.
+- [Python 3.11+](https://www.python.org/downloads/) - The backbone of the app.
 - [Git](https://git-scm.com/downloads) - For version control and cloning.
 - [Elasticsearch Cloud](https://www.elastic.co/cloud) - Sign up for a free trial or paid plan.
 - A code editor (e.g., [VS Code](https://code.visualstudio.com/), [PyCharm](https://www.jetbrains.com/pycharm/)).
