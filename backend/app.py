@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request, render_template
 import time
+import os
 try:
-    from .dataextractor import connect_to_elasticsearch, scrape_rss_feed, upload_to_elasticsearch
-    from .contentssummariser import summarize_text
+    # from .dataextractor import connect_to_elasticsearch, scrape_rss_feed, upload_to_elasticsearch
+    # from .contentssummariser import summarize_text
     from .translator import translate_text
     from .category import extract_articles_by_category
     from .search import search_articles
@@ -12,8 +13,14 @@ except ModuleNotFoundError as e:
     exit(1)
 
 app = Flask(__name__)
-
-es = connect_to_elasticsearch()
+ES_ENDPOINT = os.getenv("ELASTICSEARCH_ENDPOINT")
+ES_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
+ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
+es = Elasticsearch(
+    hosts=[ES_ENDPOINT],
+    basic_auth=(ES_USERNAME, ES_PASSWORD),
+    # verify_certs=False  # Disable SSL verification
+)
 
 CATEGORIES = ["Top", "Sports", "World", "States", "Cities", "Entertainment"]
 
