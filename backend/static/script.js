@@ -1,6 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Load the default category (Top) when the page loads
-    if (window.location.pathname === '/') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const category = urlParams.get('category');
+
+    // Load the category from the URL, or default to 'Top' only if no category is present
+    if (category) {
+        loadCategory(category);
+    } else if (window.location.pathname === '/') {
         loadCategory('Top');
     }
 });
@@ -9,43 +14,56 @@ const BASE_URL = window.location.origin;
 
 // Load category from the article page
 function loadCategoryFromArticle(category) {
-    window.location.href = `${BASE_URL}/?category=${category}`;
+    window.location.href = ${BASE_URL}/?category=${category};
 }
 
 // Load Karnataka news from the article page
 function loadKarnatakaNewsFromArticle() {
-    window.location.href = `${BASE_URL}/?search=Karnataka`;
+    window.location.href = ${BASE_URL}/?search=Karnataka;
 }
 
 // Load Bengaluru news from the article page
 function loadBengaluruNewsFromArticle() {
-    window.location.href = `${BASE_URL}/?search=Bengaluru`;
+    window.location.href = ${BASE_URL}/?search=Bengaluru;
 }
 
 async function loadCategory(category) {
     showLoading();
+    
+    // Update the URL without reloading the page
+    const newUrl = ${BASE_URL}/?category=${encodeURIComponent(category)};
+    window.history.pushState({ category }, "", newUrl);
+
     try {
-        const response = await fetch(`${BASE_URL}/category/${category}`);
+        const response = await fetch(${BASE_URL}/category/${category});
         if (!response.ok) {
-            throw new Error(`Failed to load articles. Please try again later.`);
+            throw new Error(Failed to load articles. Please try again later.);
         }
         const articles = await response.json();
-        console.log(`Fetched articles for category '${category}':`, articles);
+        console.log(Fetched articles for category '${category}':, articles);
         renderArticles(articles);
     } catch (error) {
-        console.error(`Error loading category '${category}':`, error);
-        alert(error.message);  // Display user-friendly error message
+        console.error(Error loading category '${category}':, error);
+        alert(error.message);
     } finally {
         hideLoading();
     }
 }
 
+// Handle back/forward navigation
+window.addEventListener("popstate", (event) => {
+    if (event.state && event.state.category) {
+        loadCategory(event.state.category);
+    }
+});
+
+
 async function loadBengaluruNews() {
     showLoading();
     try {
-        const response = await fetch(`${BASE_URL}/search?q=Bengaluru`);
+        const response = await fetch(${BASE_URL}/search?q=Bengaluru);
         if (!response.ok) {
-            throw new Error(`Failed to load articles. Please try again later.`);
+            throw new Error(Failed to load articles. Please try again later.);
         }
         const articles = await response.json();
         console.log("Fetched Bengaluru news:", articles);
@@ -61,9 +79,9 @@ async function loadBengaluruNews() {
 async function loadKarnatakaNews() {
     showLoading();
     try {
-        const response = await fetch(`${BASE_URL}/search?q=Karnataka`);
+        const response = await fetch(${BASE_URL}/search?q=Karnataka);
         if (!response.ok) {
-            throw new Error(`Failed to load articles. Please try again later.`);
+            throw new Error(Failed to load articles. Please try again later.);
         }
         const articles = await response.json();
         console.log("Fetched Karnataka news:", articles);
@@ -85,15 +103,15 @@ async function searchArticles() {
         return;
     }
     try {
-        const response = await fetch(`${BASE_URL}/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(${BASE_URL}/search?q=${encodeURIComponent(query)});
         if (!response.ok) {
-            throw new Error(`Failed to load articles. Please try again later.`);
+            throw new Error(Failed to load articles. Please try again later.);
         }
         const articles = await response.json();
-        console.log(`Fetched articles for search query '${query}':`, articles);
+        console.log(Fetched articles for search query '${query}':, articles);
         renderArticles(articles);
     } catch (error) {
-        console.error(`Error searching articles:`, error);
+        console.error(Error searching articles:, error);
         alert(error.message);
     } finally {
         hideLoading();
@@ -142,7 +160,7 @@ function hideLoading() {
 function translateArticle(lang) {
     const currentUrl = window.location.href.split('?')[0];  // Remove existing query params
     if (lang) {
-        window.location.href = `${currentUrl}?lang=${lang}`;
+        window.location.href = ${currentUrl}?lang=${lang};
     } else {
         window.location.href = currentUrl;  // Reset to default (no translation)
     }
