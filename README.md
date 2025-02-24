@@ -32,7 +32,7 @@ To build, run, or deploy DAL-News, you’ll need:
 
 ## Project Structure 🌳
 
-plaintext
+**plaintext
 DAL-News/
   ├── static/              # Frontend assets
   │   ├── styles.css       # Custom styles
