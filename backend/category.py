@@ -1,12 +1,16 @@
 from elasticsearch import Elasticsearch
-
-ES_ENDPOINT = "https://9fb474a7f57d4bfbbd9e05246ff0b8ec.asia-south1.gcp.elastic-cloud.com:443"
-ES_USERNAME = "elastic"
-ES_PASSWORD = "6lWF4jG8mE5IUnOSc66kmSo1"
+import os
+ES_ENDPOINT = os.getenv("ELASTICSEARCH_ENDPOINT")
+ES_USERNAME = os.getenv("ELASTICSEARCH_USERNAME")
+ES_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD")
 ES_INDEX = "news-articles"
 
 def connect_to_elasticsearch():
-    es = Elasticsearch(ES_ENDPOINT, basic_auth=(ES_USERNAME, ES_PASSWORD))
+    es = Elasticsearch(
+    hosts=[ES_ENDPOINT],
+    basic_auth=(ES_USERNAME, ES_PASSWORD),
+    # verify_certs=False  # Disable SSL verification
+)
     return es
 
 # def extract_articles_by_category(es, category):
