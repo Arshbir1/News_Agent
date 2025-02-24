@@ -33,7 +33,9 @@ RSS_FEEDS = {
     "Cities": "https://feeds.feedburner.com/ndtvnews-cities-news",
     "Entertainment": "https://feeds.feedburner.com/ndtvmovies-latest"
 }
-
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"}), 200
 @app.route('/')
 def index():
     start_time = time.time()
