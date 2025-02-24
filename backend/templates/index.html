@@ -1,26 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y98XYMVPD8"></script>  
-<script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-Y98XYMVPD8'); 
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DAL-News</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Roboto:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="logo-container">
-            <img src="{{ url_for('static', filename='news_logo.jpg') }}" alt="DAL-News Logo" class="logo">
-            <h1><a href="/" class="logo-link">DAL-News</a></h1>
+            <a href="/" class="logo-link"> <!-- Make logo a hyperlink to homepage -->
+                <img src="{{ url_for('static', filename='news_logo.jpg') }}" alt="DAL-News Logo" class="logo">
+            </a>
+            <h1><a href="/" class="logo-link">-News</a></h1>
         </div>
     </header>
     <div id="categories">
@@ -44,8 +37,9 @@
                     <h2><a href="/article_page/{{ article.title | urlencode }}">{{ article.title }}</a></h2>
                     <a href="/article_page/{{ article.title | urlencode }}">
                         <img src="{{ article.image_url }}" alt="{{ article.title }}" class="article-image">
-                    </a>
+                    </a>    
                     <p>{{ article.summary[:100] }}...</p>
+                    <p><strong>Published:</strong> {{ article.published | default('Not available', true) }}</p>
                 </div>
             {% endfor %}
         {% else %}
@@ -53,6 +47,38 @@
         {% endif %}
     </div>
     <div class="scroll-down-indicator">↓</div>
+    <div class="footer-banner">
+        <span class="banner-text">© DAL-News 2025. All rights reserved. Design by Team DALL-Eminators.</span>
+        <span class="back-to-top">↑</span>
+    </div>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Map Enter key to trigger search button
+        document.getElementById('searchQuery').addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Prevent default form submission if any
+                searchArticles(); // Trigger the search function
+            }
+        });
+
+        // Show/hide footer banner when scrolled to the bottom
+        window.addEventListener('scroll', function() {
+            const footerBanner = document.querySelector('.footer-banner');
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+            if (documentHeight - (scrollTop + windowHeight) < 100) { // Show when within 100px of bottom
+                footerBanner.classList.add('visible');
+            } else {
+                footerBanner.classList.remove('visible');
+            }
+        });
+
+        // Back-to-top functionality
+        document.querySelector('.back-to-top').addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // Smooth scroll to top
+        });
+    </script>
 </body>
 </html>
